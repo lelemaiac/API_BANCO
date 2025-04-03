@@ -10,6 +10,28 @@ spec = FlaskPydanticSpec(app)
 
 @app.route('/cadastrar_livro', methods=['GET', 'POST'])
 def cadastrar_livro():
+    """
+       API para cadastrar livro.
+
+       ## Endpoint:
+        /cadastrar_livro
+
+       ## Respostas (JSON):
+       ```json
+
+       {
+            "titulo":
+            "autor",
+            "isbn":,
+            "resumo",
+        }
+
+       ## Erros possíveis (JSON):
+        "O livro já está cadastrado", rertorna erro ***400
+        Bad Request***:
+            ```json
+       """
+
     try:
         if request.method == 'POST':
             if (not request.form['form_titulo'] or not request.form['form_autor']
@@ -61,6 +83,28 @@ def cadastrar_livro():
 
 @app.route('/cadastrar_usuario', methods=['POST', 'GET'])
 def cadastrar_usuario():
+    """
+           API para cadastrar usuário.
+
+           ## Endpoint:
+            /cadastrar_usuario
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "id":
+                "nome",
+                "cpf":,
+                "endereco",
+            }
+
+           ## Erros possíveis (JSON):
+            "O usuário já está cadastrado", rertorna erro ***400
+            Bad Request***:
+                ```json
+           """
+
     try:
         if request.method == 'POST':
             if (not request.form['form_nome'] or not request.form['form_cpf']
@@ -105,6 +149,28 @@ def cadastrar_usuario():
 
 @app.route('/cadastrar_emprestimo', methods=['POST', 'GET'])
 def cadastrar_emprestimo():
+    """
+           API para cadastrar emprestimo.
+
+           ## Endpoint:
+            /cadastrar_emprestimo
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "data_devolucao":
+                "data_emprestimo",
+                "livro":,
+                "usuario":,
+            }
+
+           ## Erros possíveis (JSON):
+            "Emprestimo já cadastrado", rertorna erro ***400
+            Bad Request***:
+                ```json
+           """
+
     try:
         if request.method == 'POST':
             if (not request.form['form_data_emprestimo'] or not request.form['form_data_devolucao']
@@ -144,6 +210,31 @@ def cadastrar_emprestimo():
 
 @app.route('/editar_livro/<int:id>', methods=['POST'])
 def editar_livro(id):
+    """
+           API para editar informações do livro.
+
+           ## Endpoint:
+            /editar_livro/<int:id>
+
+            ## Parâmetro:
+            "id" **Id do livro**
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "titulo":
+                "autor",
+                "isbn":,
+                "resumo",
+            }
+
+           ## Erros possíveis (JSON):
+            "O titulo deste livro já está cadastrado", rertorna erro ***400
+            Bad Request***:
+                ```json
+           """
+
     try:
         livro_atualizado = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
 
@@ -183,6 +274,30 @@ def editar_livro(id):
 
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
+    """
+           API para editar dados do usuario.
+
+           ## Endpoint:
+            /editar_usuario/<int:id>
+
+            ##Parâmetros:
+            "id" **Id do usuario**
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "nome":
+                "cpf",
+                "endereco":,
+            }
+
+           ## Erros possíveis (JSON):
+            "O CPF deste usuário já está cadastrado", rertorna erro ***400
+            Bad Request***:
+                ```json
+           """
+
     try:
         usuario_atualizado = db_session.execute(select(Usuario).where(Usuario.id == id)).scalar()
 
@@ -229,104 +344,272 @@ def editar_usuario(id):
 
 @app.route('/get_usuario/<int:id>', methods=['GET'])
 def get_usuario(id):
-    usuario = db_session.execute(select(Usuario).where(Usuario.id == id)).scalar()
+    """
+           API para buscar um usuário.
 
-    if not usuario:
-        return jsonify({
-            "erro": "Usuário não encontrado!"
-        })
+           ## Endpoint:
+            /get_usuario/<int:id>
 
-    else:
+            ##Parâmetros:
+            "id" **Id do usuario**
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "id":
+                "nome",
+                "cpf":,
+                "endereco",
+            }
+
+           ## Erros possíveis (JSON):
+            "Usuário não encontrado ***400
+            Bad Request***:
+                ```json
+           """
+    try:
+        usuario = db_session.execute(select(Usuario).where(Usuario.id == id)).scalar()
+
+        if not usuario:
+            return jsonify({
+                "erro": "Usuário não encontrado!"
+            })
+
+        else:
+            return jsonify({
+                "id": usuario.id,
+                "nome": usuario.nome,
+                "cpf": usuario.cpf,
+                "endereco": usuario.endereco
+            })
+    except ValueError:
         return jsonify({
-            "id": usuario.id,
-            "nome": usuario.nome,
-            "cpf": usuario.cpf,
-            "endereco": usuario.endereco
+            "error": "Não foi possível listar os dados!"
         })
 
 
 @app.route('/usuarios', methods=['GET'])
 def usuarios():
-    sql_usuarios = select(Usuario)
-    resultado_usuarios = db_session.execute(sql_usuarios).scalars()
-    lista_usuarios = []
-    for usuario in resultado_usuarios:
-        lista_usuarios.append(usuario.serialize_user())
-    return jsonify({
-        "usuarios": lista_usuarios
-    })
+    """
+           API para listar usuários.
+
+           ## Endpoint:
+            /usuarios
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "usuarios": lista_usuarios
+            }
+
+    """
+
+    try:
+        sql_usuarios = select(Usuario)
+        resultado_usuarios = db_session.execute(sql_usuarios).scalars()
+        lista_usuarios = []
+        for usuario in resultado_usuarios:
+            lista_usuarios.append(usuario.serialize_user())
+        return jsonify({
+            "usuarios": lista_usuarios
+        })
+    except ValueError:
+        return jsonify({
+            "error": "Não foi possível listar os usuários"
+        })
 
 
 @app.route('/livros', methods=['GET'])
 def livros():
-    sql_livros = select(Livro)
-    resultado_livros = db_session.execute(sql_livros).scalars()
-    lista_livros = []
-    for livro in resultado_livros:
-        lista_livros.append(livro.serialize_user())
-    return jsonify({
-        "livros": lista_livros
-    })
+    """
+           API listar livros.
+
+           ## Endpoint:
+            /livros
+
+           ## Respostas (JSON):
+           ```json
+
+        {
+            "livros": lista_livros"
+        }
+
+        ## Erros possíveis (JSON):
+        "Não foi possível listar os livros ***400
+        Bad Request***:
+            ```json
+           """
+
+    try:
+        sql_livros = select(Livro)
+        resultado_livros = db_session.execute(sql_livros).scalars()
+        lista_livros = []
+        for livro in resultado_livros:
+            lista_livros.append(livro.serialize_user())
+        return jsonify({
+            "livros": lista_livros
+        })
+    except ValueError:
+        return jsonify({
+            "error": "Não foi possível listar os livros"
+        })
 
 @app.route('/get_livro/<int:id>', methods=['GET'])
 def get_livro(id):
-    livro = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
+    """
+           API para verificar um livro.
 
-    if not livro:
-        return jsonify({
-            "error": "Livro não encontrado!"
-        })
+           ## Endpoint:
+            /get_livro/<int:id>
 
-    else:
+            ##Parâmetros:
+            "id" **Id do livro**
+
+           ## Respostas (JSON):
+           ```json
+
+        {
+            "id":,
+            "titulo":
+            "autor",
+            "isbn":,
+            "resumo",
+        }
+
+        ## Erros possíveis (JSON):
+            "Não foi possível listar os dados do livro ***400
+            Bad Request***:
+                ```json
+           """
+
+
+    try:
+        livro = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
+
+        if not livro:
+            return jsonify({
+                "error": "Livro não encontrado!"
+            })
+
+        else:
+            return jsonify({
+                "id": livro.id,
+                "titulo": livro.titulo,
+                "autor": livro.autor,
+                "isbn": livro.isbn,
+                "resumo": livro.resumo
+            })
+
+    except ValueError:
         return jsonify({
-            "id": livro.id,
-            "titulo": livro.titulo,
-            "autor": livro.autor,
-            "isbn": livro.isbn,
-            "resumo": livro.resumo
+            "error": "Não foi possívl listar os dados do livro"
         })
 @app.route('/emprestimos_usuario/<id>', methods=['GET'])
 def emprestimos_usuario(id):
-    id_usuario = int(id)
-    emprestimos_user = db_session.execute(select(Emprestimo).where(Emprestimo.usuario_id == id_usuario)).scalars().all()
+    """
+           API para listar emprestimos por usuários.
 
-    if not emprestimos_user:
+           ## Endpoint:
+            /emprestimos_usuario/<int:id>
+
+            ##Parâmetros:
+            "id" **Id do usuário**
+
+           ## Respostas (JSON):
+           ```json
+
+            {
+                "usuario":
+                "emprestimo",
+
+            }
+
+            ## Erros possíveis (JSON):
+            "Não foi possível listar os dados deste emprestimo ***400
+            Bad Request***:
+                ```json
+           """
+
+    try:
+        id_usuario = int(id)
+        emprestimos_user = db_session.execute(select(Emprestimo).where(Emprestimo.usuario_id == id_usuario)).scalars().all()
+
+        if not emprestimos_user:
+            return jsonify({
+                "error": "Este usuário não fez emprestimo!"
+            })
+
+        else:
+            emprestimos_livros = []
+            for emprestimo in emprestimos_user:
+                emprestimos_livros.append(emprestimo.serialize_user())
+            #     livro = db_session.execute(select(Livro).where(Livro.id == emprestimo.livro_id)).scalars().all()
+            #     emprestimos_livros.append(livro)
+            return jsonify({
+                'usuario': int(id_usuario),
+                'emprestimos': emprestimos_livros,
+            })
+    except ValueError:
         return jsonify({
-            "error": "Este usuário não fez emprestimo!"
+            "error": "Não foi possível listar os dados do emprestimo"
+        })
+@app.route('/status_livro', methods=['GET'])
+def status_livro():
+    """
+           API para mostrar status de livro.
+
+           ## Endpoint:
+            /status_livro
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "livros emprestados":
+                "livros disponiveis",
+            }
+
+            ## Erros possíveis (JSON):
+            "Não foi possível mostrar o status dos livros ***400
+            Bad Request***:
+                ```json
+            """
+
+
+    try:
+        livro_emprestado = db_session.execute(
+            select(Livro).where(Livro.id == Emprestimo.livro_id).distinct(Livro.isbn)).scalars()
+        id_livro_emprestado = db_session.execute(
+            select(Livro.id).where(Livro.id == Emprestimo.livro_id).distinct(Livro.isbn)).scalars()
+        print("livro Emprestado",livro_emprestado)
+        livros = db_session.execute(select(Livro)).scalars()
+
+        print("Livros todos", livros)
+
+        lista_emprestados = []
+        lista_disponiveis = []
+        for livro in livro_emprestado:
+            lista_emprestados.append(livro.serialize_user())
+
+        for book in livros:
+            if book.id not in id_livro_emprestado:
+                lista_disponiveis.append(book.serialize_user())
+
+        print("resultados lista", lista_emprestados)
+        print("resultados disponibiliza", lista_disponiveis)
+
+
+        return jsonify({
+            "livros emprestados": lista_emprestados,
+            "livros disponiveis": lista_disponiveis
+
         })
 
-    else:
-        emprestimos_livros = []
-        for emprestimo in emprestimos_user:
-            emprestimos_livros.append(emprestimo.serialize_user())
-        #     livro = db_session.execute(select(Livro).where(Livro.id == emprestimo.livro_id)).scalars().all()
-        #     emprestimos_livros.append(livro)
+    except ValueError:
         return jsonify({
-            'usuario': int(id_usuario),
-            'emprestimos': emprestimos_livros,
-        })
-
-@app.route('/status_livro/<id>', methods=['GET'])
-def status_livro(id):
-    id_livro = int(id)
-    resultado_emprestimos = db_session.execute(select(Emprestimo).where(Emprestimo.livro_id == id_livro)).fetchall()
-    print("resultado", resultado_emprestimos)
-
-    livro = db_session.execute(select(Livro).where(Livro.id == Emprestimo.livro_id)).scalars().all()
-    print("resultadoss", livro)
-
-    lista_livros = []
-    for x in livro:
-        lista_livros.append(x.serialize_user())
-
-    if id_livro not in resultado_emprestimos:
-        return jsonify({
-            "status": "Este livro está disponível",
-        })
-
-    else:
-        return jsonify({
-            "livros emprestados": resultado_emprestimos
+            "error": "não foi possível mostrar o status do livro"
         })
 
 
