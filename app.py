@@ -31,6 +31,7 @@ def cadastrar_livro():
         Bad Request***:
             ```json
        """
+    db_session = session_local()
     dados_livro = request.get_json()
     try:
         if (not "titulo" in dados_livro or not "autor" in dados_livro
@@ -88,6 +89,8 @@ def cadastrar_livro():
 
     except Exception as e:
         return jsonify({"erro": str(e)})
+    finally:
+        db_session.close()
 
 
 @app.route('/cadastrar_usuario', methods=['POST', 'GET'])
@@ -113,6 +116,7 @@ def cadastrar_usuario():
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
     dados_usuario = request.get_json()
     try:
         if (not "nome" in dados_usuario or not "cpf" in dados_usuario or not "endereco" in dados_usuario):
@@ -159,7 +163,10 @@ def cadastrar_usuario():
         }), 404
 
     except Exception as e:
-        return jsonify({"erro": str(e)})
+        return jsonify({"erro": str(e)}), 404
+
+    finally:
+        db_session.close()
 
 
 @app.route('/cadastrar_emprestimo', methods=['POST'])
@@ -185,6 +192,7 @@ def cadastrar_emprestimo():
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
     dados_emprestimo = request.get_json()
     print(dados_emprestimo)
     print(dados_emprestimo["livro"])
@@ -228,7 +236,9 @@ def cadastrar_emprestimo():
             "erro": "Empréstimo já cadastrado!"
         })
     except Exception as e:
-        return jsonify({"erro": str(e)})
+        return jsonify({"erro": str(e)}), 404
+    finally:
+        db_session.close()
 
 
 @app.route('/editar_livro/<int:id>', methods=['POST'])
@@ -257,6 +267,7 @@ def editar_livro(id):
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
     dados_editar_livro = request.get_json()
     try:
         livro_atualizado = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
@@ -298,7 +309,10 @@ def editar_livro(id):
             "erro": "O título deste livro já está cadastrado!"
         }), 400
     except Exception as e:
-        return jsonify({"erro": str(e)})
+        return jsonify({"erro": str(e)}), 404
+
+    finally:
+        db_session.close()
 
 
 
@@ -327,6 +341,7 @@ def editar_usuario(id):
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
     dados_editar_usuario = request.get_json()
     try:
         usuario_atualizado = db_session.execute(select(Usuario).where(Usuario.id == id)).scalar()
@@ -374,6 +389,11 @@ def editar_usuario(id):
         return jsonify({
             "erro": "O CPF deste usuário já está cadastrado!"
         }), 400
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
+
 
 
 @app.route('/get_usuario/<int:id>', methods=['GET'])
@@ -402,6 +422,7 @@ def get_usuario(id):
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
     try:
         usuario = db_session.execute(select(Usuario).where(Usuario.id == id)).scalar()
 
@@ -420,7 +441,11 @@ def get_usuario(id):
     except ValueError:
         return jsonify({
             "error": "Não foi possível listar os dados!"
-        })
+        }), 400
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
 
 
 @app.route('/usuarios', methods=['GET'])
@@ -439,6 +464,7 @@ def usuarios():
             }
 
     """
+    db_session = session_local()
 
     try:
         sql_usuarios = select(Usuario)
@@ -453,6 +479,10 @@ def usuarios():
         return jsonify({
             "error": "Não foi possível listar os usuários"
         })
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
 
 
 @app.route('/livros', methods=['GET'])
@@ -475,6 +505,7 @@ def livros():
         Bad Request***:
             ```json
            """
+    db_session = session_local()
 
     try:
         sql_livros = select(Livro)
@@ -489,6 +520,10 @@ def livros():
         return jsonify({
             "error": "Não foi possível listar os livros"
         })
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
 
 @app.route('/get_livro/<int:id>', methods=['GET'])
 def get_livro(id):
@@ -517,7 +552,7 @@ def get_livro(id):
             Bad Request***:
                 ```json
            """
-
+    db_session = session_local()
 
     try:
         livro = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
@@ -525,7 +560,7 @@ def get_livro(id):
         if not livro:
             return jsonify({
                 "error": "Livro não encontrado!"
-            })
+            }), 400
 
         else:
             return jsonify({
@@ -534,12 +569,17 @@ def get_livro(id):
                 "autor": livro.autor,
                 "isbn": livro.isbn,
                 "resumo": livro.resumo
-            })
+            }), 200
 
     except ValueError:
         return jsonify({
             "error": "Não foi possívl listar os dados do livro"
-        })
+        }), 400
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
+
 @app.route('/emprestimos_usuario/<id>', methods=['GET'])
 def emprestimos_usuario(id):
     """
@@ -565,6 +605,7 @@ def emprestimos_usuario(id):
             Bad Request***:
                 ```json
            """
+    db_session = session_local()
 
     try:
         id_usuario = int(id)
@@ -573,7 +614,7 @@ def emprestimos_usuario(id):
         if not emprestimos_user:
             return jsonify({
                 "error": "Este usuário não fez emprestimo!"
-            })
+            }), 400
 
         else:
             emprestimos_livros = []
@@ -584,11 +625,17 @@ def emprestimos_usuario(id):
             return jsonify({
                 'usuario': int(id_usuario),
                 'emprestimos': emprestimos_livros,
-            })
+            }), 200
+
     except ValueError:
         return jsonify({
             "error": "Não foi possível listar os dados do emprestimo"
-        })
+        }), 400
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
+
 @app.route('/status_livro', methods=['GET'])
 def status_livro():
     """
@@ -610,7 +657,7 @@ def status_livro():
             Bad Request***:
                 ```json
             """
-
+    db_session = session_local()
 
     try:
         livro_emprestado = db_session.execute(
@@ -639,12 +686,16 @@ def status_livro():
             "livros emprestados": lista_emprestados,
             "livros disponiveis": lista_disponiveis
 
-        })
+        }), 200
 
     except ValueError:
         return jsonify({
             "error": "não foi possível mostrar o status do livro"
-        })
+        }), 400
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
 
 
 spec.register(app)

@@ -1,12 +1,14 @@
 from sqlalchemy import create_engine, Integer,Column, String, ForeignKey, Float, Column
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship, declarative_base
 
 
 engine = create_engine('sqlite:///banco_api.sqlite3')
-db_session = scoped_session(sessionmaker(bind=engine))
+#db_session = scoped_session(sessionmaker(bind=engine))
+session_local = sessionmaker(bind=engine)
 
 Base = declarative_base()
-Base.query = db_session.query_property()
+#Base.query = db_session.query_property()
 
 class Livro(Base):
     __tablename__ = 'Livros'
@@ -19,13 +21,21 @@ class Livro(Base):
     def __repr__(self):
         return '<Livro {}>'.format(self.titulo)
 
-    def save(self):
-        db_session.add(self)
-        db_session.commit()
+    def save(self, db_session):
+        try:
+            db_session.add(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
-    def delete(self):
-        db_session.delete(self)
-        db_session.commit()
+    def delete(self, db_session):
+        try:
+            db_session.delete(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
     def serialize_user(self):
         dados_livro = {
@@ -48,13 +58,21 @@ class Usuario(Base):
     def __repr__(self):
         return '<Usuario {}>'.format(self.nome)
 
-    def save(self):
-        db_session.add(self)
-        db_session.commit()
+    def save(self, db_session):
+        try:
+            db_session.add(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
-    def delete_user(self):
-        db_session.delete(self)
-        db_session.commit()
+    def delete_user(self, db_session):
+        try:
+            db_session.delete(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
     def serialize_user(self):
         dados_usuario = {
@@ -80,13 +98,21 @@ class Emprestimo(Base):
     def __repr__(self):
         return '<Emprestimo {}>'.format(self.data_emprestimo)
 
-    def save(self):
-        db_session.add(self)
-        db_session.commit()
+    def save(self, db_session):
+        try:
+            db_session.add(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
-    def delete(self):
-        db_session.delete(self)
-        db_session.commit()
+    def delete(self, db_session):
+        try:
+            db_session.delete(self)
+            db_session.commit()
+        except SQLAlchemyError:
+            db_session.rollback()
+            raise
 
     def serialize_user(self):
         dados_emprestimo = {
