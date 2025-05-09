@@ -2,8 +2,22 @@ from sqlalchemy import create_engine, Integer,Column, String, ForeignKey, Float,
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship, declarative_base
 
+from dotenv import load_dotenv
+import os
+import configparser
 
-engine = create_engine('sqlite:///banco_api.sqlite3')
+load_dotenv()
+url_ = os.environ.get('DATABASE_URL')
+print(f'modo1:{url_}')
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+database_url = config['database']['url']
+print(f'modo2:{database_url}')
+
+
+engine = create_engine(database_url)
 #db_session = scoped_session(sessionmaker(bind=engine))
 session_local = sessionmaker(bind=engine)
 

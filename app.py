@@ -8,7 +8,7 @@ app = Flask(__name__)
 spec = FlaskPydanticSpec(app)
 
 
-@app.route('/cadastrar_livro', methods=['GET', 'POST'])
+@app.route('/cadastrar_livro', methods=['POST'])
 def cadastrar_livro():
     """
        API para cadastrar livro.
@@ -72,7 +72,7 @@ def cadastrar_livro():
             resumo=resumo
         )
 
-        form_criar.save()
+        form_criar.save(db_session)
         # db_session.close()
 
         return jsonify({
@@ -93,7 +93,7 @@ def cadastrar_livro():
         db_session.close()
 
 
-@app.route('/cadastrar_usuario', methods=['POST', 'GET'])
+@app.route('/cadastrar_usuario', methods=['POST'])
 def cadastrar_usuario():
     """
            API para cadastrar usuário.
@@ -124,8 +124,7 @@ def cadastrar_usuario():
                 "erro": "É obrigatório ter os campos: Nome, CPF, Endereco"
             }), 400
 
-        if (dados_usuario["nome"] == "" or dados_usuario["cpf"] == ""
-                or dados_usuario["endereco"]):
+        if (dados_usuario["nome"] == "" or dados_usuario["cpf"] == "" or dados_usuario["endereco"] ==""):
             return jsonify({
                 "erro": "Preencher os campos em branco!!"
             }), 400
@@ -147,11 +146,11 @@ def cadastrar_usuario():
             endereco=endereco
         )
 
-        form_criar.save()
+        form_criar.save(db_session)
         # db_session.close()
 
         return jsonify({
-            "id": dados_usuario["id"],
+            "id": form_criar.id,
             "nome": dados_usuario["nome"],
             "cpf": dados_usuario["cpf"],
             "endereco": dados_usuario["endereco"]
@@ -195,24 +194,24 @@ def cadastrar_emprestimo():
     db_session = session_local()
     dados_emprestimo = request.get_json()
     print(dados_emprestimo)
-    print(dados_emprestimo["livro"])
+    # print(dados_emprestimo["livro_id"])
     try:
-        if (not "livro" in dados_emprestimo or not "usuario" in dados_emprestimo
-                or not "data_devolucao" in dados_emprestimo or not "data_emprestimo" in dados_emprestimo):
+        if (not "livro_id" in dados_emprestimo or not "usuario_id" in dados_emprestimo
+                or not "data_devolucao_prevista" in dados_emprestimo or not "data_emprestimo" in dados_emprestimo):
             return jsonify({
                 "erro": "É obrigatório ter os campos: Livro, usuário, data_devolucao e data_emprestimo"
             }), 400
 
-        if dados_emprestimo["livro"] == "" or dados_emprestimo["usuario"] == ""\
-                or dados_emprestimo["data_devolucao"] == "" or dados_emprestimo["data_emprestimo"] == "":
+        if dados_emprestimo["livro_id"] == "" or dados_emprestimo["usuario_id"] == ""\
+                or dados_emprestimo["data_devolucao_prevista"] == "" or dados_emprestimo["data_emprestimo"] == "":
             return jsonify({
                 "erro": "Preencher os campos em branco!!"
             }), 400
 
-        data_devolucao = dados_emprestimo["data_devolucao"]
+        data_devolucao = dados_emprestimo["data_devolucao_prevista"]
         data_emprestimo = dados_emprestimo["data_emprestimo"]
-        livro = dados_emprestimo["livro"]
-        usuario = dados_emprestimo["usuario"]
+        livro = dados_emprestimo["livro_id"]
+        usuario = dados_emprestimo["usuario_id"]
 
         form_criar = Emprestimo(
             data_emprestimo=data_emprestimo,
@@ -221,20 +220,21 @@ def cadastrar_emprestimo():
             usuario_id=int(usuario)
         )
 
-        form_criar.save()
+
+        form_criar.save(db_session)
         # db_session.close()
 
         return jsonify({
-            "data_devolucao": dados_emprestimo["data_devolucao"],
+            "data_devolucao_prevista": dados_emprestimo["data_devolucao_prevista"],
             "data_emprestimo": dados_emprestimo["data_emprestimo"],
-            "livro": dados_emprestimo["livro"],
-            "usuario": dados_emprestimo["usuario"],
-        })
+            "livro_id": dados_emprestimo["livro_id"],
+            "usuario_id": dados_emprestimo["usuario_id"],
+        }), 200
 
     except sqlalchemy.exc.IntegrityError:
         return jsonify({
             "erro": "Empréstimo já cadastrado!"
-        })
+        }), 404
     except Exception as e:
         return jsonify({"erro": str(e)}), 404
     finally:
@@ -275,7 +275,7 @@ def editar_livro(id):
         if not livro_atualizado:
             return jsonify({
                 "erro": "Livro não encontrado!"
-            })
+            }), 404
 
         if (not "titulo" in dados_editar_livro or not "autor" in dados_editar_livro
                 or not "isbn" in dados_editar_livro or not "resumo" in dados_editar_livro):
@@ -316,7 +316,7 @@ def editar_livro(id):
 
 
 
-@app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
+@app.route('/editar_usuario/<int:id>', methods=['POST'])
 def editar_usuario(id):
     """
            API para editar dados do usuario.
@@ -450,6 +450,8 @@ def get_usuario(id):
 
 @app.route('/usuarios', methods=['GET'])
 def usuarios():
+
+
     """
            API para listar usuários.
 
