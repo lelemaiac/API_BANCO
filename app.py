@@ -3,12 +3,65 @@ from sqlalchemy import *
 from flask import Flask, jsonify, request
 from flask_pydantic_spec import FlaskPydanticSpec
 from models import *
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, jwt_manager
+from functools import wraps
 
 app = Flask(__name__)
 spec = FlaskPydanticSpec(app)
 
 
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        current_user = get_jwt_identity()
+        session = session_local
+
+        try:
+            busca_id = select(Usuario).where(Usuario.id == current_user)
+            usuario = session.execute(busca_id).scalar()
+
+            if usuario and usuario.papel == "admin":
+                return fn(*args, **kwargs)
+            return jsonify({
+                'erro':'Acesso negado. Requer privilégios de administrador'
+            }), 403
+        finally:
+            session.close()
+    return wrapper
+
+@app.route("/login", methods=["POST"])
+def login():
+    dados = request.get_json()
+    cpf = dados["email"]
+    senha = dados["senha"]
+
+    session = session_local
+
+    try:
+        busca_usuario = select(Usuario).where(Usuario.cpf == cpf)
+        usuario = session.execute(busca_usuario).scalar()
+
+        if usuario and usuario.check_password_hash(senha):
+            access_token = create_access_token(identity=usuario.cpf)
+            return jsonify(access_token=access_token)
+
+        return jsonify({
+            "erro": "Credenciais inválidas, tente novamente."
+        }), 401
+
+    except Exception as e:
+        return jsonify({
+            "erro": str(e)
+        })
+
+    finally:
+        session.close()
+
+
+# Proteger - só o administrador pode cadastrar
 @app.route('/cadastrar_livro', methods=['POST'])
+# @jwt_required()
+# @admin_required
 def cadastrar_livro():
     """
        API para cadastrar livro.
@@ -80,7 +133,7 @@ def cadastrar_livro():
             "autor": dados_livro["autor"],
             "isbn": dados_livro["isbn"],
             "resumo": dados_livro["resumo"]
-        })
+        }), 201
 
     except sqlalchemy.exc.IntegrityError:
         return jsonify({
@@ -119,7 +172,7 @@ def cadastrar_usuario():
     db_session = session_local()
     dados_usuario = request.get_json()
     try:
-        if (not "nome" in dados_usuario or not "cpf" in dados_usuario or not "endereco" in dados_usuario):
+        if (not "nome" in dados_usuario or not "cpf" in dados_usuario or not "endereco" in dados_usuario or not "papel" in dados_usuario):
             return jsonify({
                 "erro": "É obrigatório ter os campos: Nome, CPF, Endereco"
             }), 400
@@ -132,6 +185,8 @@ def cadastrar_usuario():
         nome = dados_usuario["nome"]
         cpf = dados_usuario["cpf"]
         endereco = dados_usuario["endereco"]
+        # senha = dados_usuario['senha']
+        papel = dados_usuario.get('papel', 'usuario')
 
         cpf_existe = db_session.execute(select(Usuario).where(Usuario.cpf == cpf)).scalar()
 
@@ -143,17 +198,21 @@ def cadastrar_usuario():
         form_criar = Usuario(
             nome=nome,
             cpf=cpf,
-            endereco=endereco
+            endereco=endereco,
+            papel=papel
         )
+        # form_criar.set_senha_hash(senha)
+        # session_local.add(form_criar)
+        # session_local.commit()
 
         form_criar.save(db_session)
-        # db_session.close()
 
         return jsonify({
             "id": form_criar.id,
             "nome": dados_usuario["nome"],
             "cpf": dados_usuario["cpf"],
-            "endereco": dados_usuario["endereco"]
+            "endereco": dados_usuario["endereco"],
+            "papel": dados_usuario["papel"]
         }), 201
 
     except sqlalchemy.exc.IntegrityError:
@@ -168,7 +227,10 @@ def cadastrar_usuario():
         db_session.close()
 
 
+# Proteger - só o administrador pode cadastrar
 @app.route('/cadastrar_emprestimo', methods=['POST'])
+# @jwt_required()
+# @admin_required
 def cadastrar_emprestimo():
     """
            API para cadastrar emprestimo.
@@ -229,7 +291,7 @@ def cadastrar_emprestimo():
             "data_emprestimo": dados_emprestimo["data_emprestimo"],
             "livro_id": dados_emprestimo["livro_id"],
             "usuario_id": dados_emprestimo["usuario_id"],
-        }), 200
+        }), 201
 
     except sqlalchemy.exc.IntegrityError:
         return jsonify({
@@ -241,7 +303,10 @@ def cadastrar_emprestimo():
         db_session.close()
 
 
+# Proteger - só o administrador pode editar
 @app.route('/editar_livro/<int:id>', methods=['POST'])
+# @jwt_required()
+# @admin_required
 def editar_livro(id):
     """
            API para editar informações do livro.
@@ -315,8 +380,10 @@ def editar_livro(id):
         db_session.close()
 
 
-
+# Proteger - só o administrador pode editar
 @app.route('/editar_usuario/<int:id>', methods=['POST'])
+# @jwt_required()
+# @admin_required
 def editar_usuario(id):
     """
            API para editar dados do usuario.
@@ -351,14 +418,14 @@ def editar_usuario(id):
                 "erro": "Usuário não encontrado!"
             })
 
-        if (not "nome" in dados_editar_usuario or not "cpf" in dados_editar_usuario
-                or not "endereco" in dados_editar_usuario):
+        if (not "data_devolucao" in dados_editar_usuario or not "cpf" in dados_editar_usuario
+                or not "endereco" in dados_editar_usuario or not "papel" in dados_editar_usuario):
             return jsonify({
-                "erro": "É obrigatório ter os campos: Título, autor, isbn, resumo"
+                "erro": "É obrigatório ter os campos: Nome, CPF, Endereço, Papel"
             }), 400
 
         if (dados_editar_usuario["nome"] == "" or dados_editar_usuario["cpf"] == ""
-                or dados_editar_usuario["endereco"] == ""):
+                or dados_editar_usuario["endereco"] == "" or dados_editar_usuario["papel"] == ""):
             return jsonify({
                 "erro": "Preencher os campos em branco!!"
             }), 400
@@ -375,6 +442,7 @@ def editar_usuario(id):
         usuario_atualizado.nome = dados_editar_usuario["nome"]
         usuario_atualizado.cpf = dados_editar_usuario["cpf"].strip()
         usuario_atualizado.endereco = dados_editar_usuario["endereco"]
+        usuario_atualizado.papel = dados_editar_usuario["papel"]
 
         usuario_atualizado.save()
         # db_session.commit()
@@ -383,6 +451,7 @@ def editar_usuario(id):
             "nome": usuario_atualizado.nome,
             "cpf": usuario_atualizado.cpf,
             "endereco": usuario_atualizado.endereco,
+            "papel": usuario_atualizado.papel,
         }), 201
 
     except sqlalchemy.exc.IntegrityError:
@@ -394,9 +463,77 @@ def editar_usuario(id):
     finally:
         db_session.close()
 
+@app.route('/editar_emprestimo/<int:id>', methods=['POST'])
+# @jwt_required()
+# @admin_required
+def editar_emprestimo(id):
+    """
+           API para editar dados do usuario.
+
+           ## Endpoint:
+            /editar_emprestimo/<int:id>
+
+            ##Parâmetros:
+            "id" **Id do emprestimo**
+
+           ## Respostas (JSON):
+           ```json
+
+           {
+                "livro_id":
+                "usuario_id",
+                "data_devolucao_prevista",
+                "data_emprestimo":,
+            }
+           """
+    db_session = session_local()
+    dados_editar_emprestimo = request.get_json()
+    try:
+        emprestimo_atualizado = db_session.execute(select(Emprestimo).where(Emprestimo.id == id)).scalar()
+
+        if not emprestimo_atualizado:
+            return jsonify({
+                "erro": "Emprestimo não encontrado!"
+            })
+
+        if (not "livro_id" in dados_editar_emprestimo or not "usuario_id" in dados_editar_emprestimo
+                or not "data_devolucao_prevista" in dados_editar_emprestimo or not "data_emprestimo" in dados_editar_emprestimo):
+            return jsonify({
+                "erro": "É obrigatório ter os campos: Nome, CPF, Endereço, Papel"
+            }), 400
+
+        if (dados_editar_emprestimo["livro_id"] == "" or dados_editar_emprestimo["usuario_id"] == ""
+                or dados_editar_emprestimo["data_devolucao_prevista"] == "" or dados_editar_emprestimo["data_emprestimo"] == ""):
+            return jsonify({
+                "erro": "Preencher os campos em branco!!"
+            }), 400
 
 
+        emprestimo_atualizado.livro_id = dados_editar_emprestimo["livro_id"]
+        emprestimo_atualizado.usuario_id = dados_editar_emprestimo["usuario_id"].strip()
+        emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["endereco"]
+        emprestimo_atualizado.data_emprestimo = dados_editar_emprestimo["data_emprestimo"]
+
+        emprestimo_atualizado.save()
+        # db_session.commit()
+
+        return jsonify({
+            "livro_id": emprestimo_atualizado.livro_id,
+            "usuario_id": emprestimo_atualizado.usuario_id,
+            "data_devolucao_prevista": emprestimo_atualizado.data_devolucao_prevista,
+            "data_emprestimo": emprestimo_atualizado.data_emprestimo,
+        }), 201
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
+
+
+# Proteger - só o administrador pode visualizar os usuários
 @app.route('/get_usuario/<int:id>', methods=['GET'])
+@jwt_required()
+@admin_required
 def get_usuario(id):
     """
            API para buscar um usuário.
@@ -447,10 +584,11 @@ def get_usuario(id):
     finally:
         db_session.close()
 
-
+# Proteger - só o administrador pode visualizar os usuários
 @app.route('/usuarios', methods=['GET'])
+# @jwt_required()
+# @admin_required
 def usuarios():
-
 
     """
            API para listar usuários.
@@ -527,6 +665,28 @@ def livros():
     finally:
         db_session.close()
 
+@app.route('/emprestimos', methods=['GET'])
+def emprestimos():
+    db_session = session_local()
+
+    try:
+        sql_emprestimos = select(Emprestimo)
+        resultado_emprestimos = db_session.execute(sql_emprestimos).scalars()
+        lista_emprestimos = []
+        for emprestimo in resultado_emprestimos:
+            lista_emprestimos.append(emprestimo.serialize_user())
+        return jsonify({
+            "emprestimos": lista_emprestimos
+        }), 200
+    except ValueError:
+        return jsonify({
+            "error": "Não foi possível listar os emprestimos"
+        })
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+    finally:
+        db_session.close()
+
 @app.route('/get_livro/<int:id>', methods=['GET'])
 def get_livro(id):
     """
@@ -582,7 +742,10 @@ def get_livro(id):
     finally:
         db_session.close()
 
+# Proteger - só o administrador pode visualizar o emprestimo por usuário
 @app.route('/emprestimos_usuario/<id>', methods=['GET'])
+@jwt_required()
+@admin_required
 def emprestimos_usuario(id):
     """
            API para listar emprestimos por usuários.
@@ -685,8 +848,8 @@ def status_livro():
 
 
         return jsonify({
-            "livros emprestados": lista_emprestados,
-            "livros disponiveis": lista_disponiveis
+            "livros_emprestados": lista_emprestados,
+            "livros_disponiveis": lista_disponiveis
 
         }), 200
 
@@ -703,4 +866,4 @@ def status_livro():
 spec.register(app)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)

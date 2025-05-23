@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, Integer,Column, String, ForeignKey, Float, Column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship, declarative_base
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from dotenv import load_dotenv
 import os
@@ -17,7 +18,8 @@ database_url = config['database']['url']
 print(f'modo2:{database_url}')
 
 
-engine = create_engine(database_url)
+engine = create_engine('sqlite:///banco_api-2.sqlite3')
+# engine = create_engine(database_url)
 #db_session = scoped_session(sessionmaker(bind=engine))
 session_local = sessionmaker(bind=engine)
 
@@ -68,6 +70,14 @@ class Usuario(Base):
     nome = Column(String, nullable=False, index=True)
     cpf = Column(String, nullable=False, index=True, unique=True)
     endereco = Column(String, nullable=False, index=True)
+    # senha_hash = Column(String, nullable=False)
+    papel = Column(String, nullable=False, index=True)
+    #
+    # def set_senha_hash(self, senha):
+    #     self.senha_hash = generate_password_hash(senha)
+    #
+    # def check_password_hash(self, senha):
+    #     return check_password_hash(self.senha_hash, senha)
 
     def __repr__(self):
         return '<Usuario {}>'.format(self.nome)
@@ -94,6 +104,7 @@ class Usuario(Base):
             'nome': self.nome,
             'cpf': self.cpf,
             'endereco': self.endereco,
+            'papel': self.papel,
         }
         return dados_usuario
 
