@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import create_engine, Integer,Column, String, ForeignKey, Float, Column
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship, declarative_base
@@ -104,14 +106,14 @@ class Usuario(Base):
             'nome': self.nome,
             'cpf': self.cpf,
             'endereco': self.endereco,
-            'papel': self.papel,
+            'papel': self.papel
         }
         return dados_usuario
 
 class Emprestimo(Base):
     __tablename__ = 'Emprestimos'
     id = Column(Integer, primary_key=True)
-    data_emprestimo = Column(String, nullable=False, index=True)
+    data_emprestimo = Column(String, nullable=False, index=True, autoincrement=True)
     data_devolucao_prevista = Column(String, nullable=False, index=True)
 
     livro_id = Column(Integer, ForeignKey('Livros.id'))

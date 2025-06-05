@@ -5,6 +5,9 @@ from flask_pydantic_spec import FlaskPydanticSpec
 from models import *
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, jwt_manager
 from functools import wraps
+from dateutil.relativedelta import relativedelta
+from datetime import datetime
+
 
 app = Flask(__name__)
 spec = FlaskPydanticSpec(app)
@@ -278,8 +281,8 @@ def cadastrar_emprestimo():
         form_criar = Emprestimo(
             data_emprestimo=data_emprestimo,
             data_devolucao_prevista=data_devolucao,
-            livro_id=int(livro),
-            usuario_id=int(usuario)
+            livro_id=livro,
+            usuario_id=usuario
         )
 
 
@@ -304,7 +307,7 @@ def cadastrar_emprestimo():
 
 
 # Proteger - só o administrador pode editar
-@app.route('/editar_livro/<int:id>', methods=['POST'])
+@app.route('/editar_livro/<id>', methods=['PUT'])
 # @jwt_required()
 # @admin_required
 def editar_livro(id):
@@ -333,8 +336,8 @@ def editar_livro(id):
                 ```json
            """
     db_session = session_local()
-    dados_editar_livro = request.get_json()
     try:
+        dados_editar_livro = request.get_json()
         livro_atualizado = db_session.execute(select(Livro).where(Livro.id == id)).scalar()
 
         if not livro_atualizado:
@@ -354,20 +357,20 @@ def editar_livro(id):
                 "erro": "Preencher os campos em branco!!"
             }), 400
 
-            livro_atualizado.titulo = dados_editar_livro["titulo"]
-            livro_atualizado.autor = dados_editar_livro["autor"]
-            livro_atualizado.isbn = dados_editar_livro["isbn"]
-            livro_atualizado.resumo = dados_editar_livro["resumo"]
+        livro_atualizado.titulo = dados_editar_livro["titulo"]
+        livro_atualizado.autor = dados_editar_livro["autor"]
+        livro_atualizado.isbn = dados_editar_livro["isbn"]
+        livro_atualizado.resumo = dados_editar_livro["resumo"]
 
-            livro_atualizado.save()
-            # db_session.commit()
+        livro_atualizado.save(db_session)
+        # db_session.commit()
 
-            return jsonify({
-                "titulo": livro_atualizado.titulo,
-                "autor": livro_atualizado.autor,
-                "isbn": livro_atualizado.isbn,
-                "resumo": livro_atualizado.resumo
-            }), 201
+        return jsonify({
+            "titulo": livro_atualizado.titulo,
+            "autor": livro_atualizado.autor,
+            "isbn": livro_atualizado.isbn,
+            "resumo": livro_atualizado.resumo
+        }), 200
 
     except sqlalchemy.exc.IntegrityError:
         return jsonify({
@@ -381,7 +384,7 @@ def editar_livro(id):
 
 
 # Proteger - só o administrador pode editar
-@app.route('/editar_usuario/<int:id>', methods=['POST'])
+@app.route('/editar_usuario/<id>', methods=['PUT'])
 # @jwt_required()
 # @admin_required
 def editar_usuario(id):
@@ -416,9 +419,9 @@ def editar_usuario(id):
         if not usuario_atualizado:
             return jsonify({
                 "erro": "Usuário não encontrado!"
-            })
+            }), 400
 
-        if (not "data_devolucao" in dados_editar_usuario or not "cpf" in dados_editar_usuario
+        if (not "nome" in dados_editar_usuario or not "cpf" in dados_editar_usuario
                 or not "endereco" in dados_editar_usuario or not "papel" in dados_editar_usuario):
             return jsonify({
                 "erro": "É obrigatório ter os campos: Nome, CPF, Endereço, Papel"
@@ -444,7 +447,7 @@ def editar_usuario(id):
         usuario_atualizado.endereco = dados_editar_usuario["endereco"]
         usuario_atualizado.papel = dados_editar_usuario["papel"]
 
-        usuario_atualizado.save()
+        usuario_atualizado.save(db_session)
         # db_session.commit()
 
         return jsonify({
@@ -452,7 +455,7 @@ def editar_usuario(id):
             "cpf": usuario_atualizado.cpf,
             "endereco": usuario_atualizado.endereco,
             "papel": usuario_atualizado.papel,
-        }), 201
+        }), 200
 
     except sqlalchemy.exc.IntegrityError:
         return jsonify({
@@ -463,7 +466,7 @@ def editar_usuario(id):
     finally:
         db_session.close()
 
-@app.route('/editar_emprestimo/<int:id>', methods=['POST'])
+@app.route('/editar_emprestimo/id>', methods=['PUT'])
 # @jwt_required()
 # @admin_required
 def editar_emprestimo(id):
@@ -487,14 +490,14 @@ def editar_emprestimo(id):
             }
            """
     db_session = session_local()
-    dados_editar_emprestimo = request.get_json()
     try:
+        dados_editar_emprestimo = request.get_json()
         emprestimo_atualizado = db_session.execute(select(Emprestimo).where(Emprestimo.id == id)).scalar()
 
         if not emprestimo_atualizado:
             return jsonify({
                 "erro": "Emprestimo não encontrado!"
-            })
+            }), 400
 
         if (not "livro_id" in dados_editar_emprestimo or not "usuario_id" in dados_editar_emprestimo
                 or not "data_devolucao_prevista" in dados_editar_emprestimo or not "data_emprestimo" in dados_editar_emprestimo):
@@ -511,10 +514,10 @@ def editar_emprestimo(id):
 
         emprestimo_atualizado.livro_id = dados_editar_emprestimo["livro_id"]
         emprestimo_atualizado.usuario_id = dados_editar_emprestimo["usuario_id"].strip()
-        emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["endereco"]
+        emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["data_devolucao_"]
         emprestimo_atualizado.data_emprestimo = dados_editar_emprestimo["data_emprestimo"]
 
-        emprestimo_atualizado.save()
+        emprestimo_atualizado.save(db_session)
         # db_session.commit()
 
         return jsonify({
@@ -522,7 +525,7 @@ def editar_emprestimo(id):
             "usuario_id": emprestimo_atualizado.usuario_id,
             "data_devolucao_prevista": emprestimo_atualizado.data_devolucao_prevista,
             "data_emprestimo": emprestimo_atualizado.data_emprestimo,
-        }), 201
+        }), 200
 
     except Exception as e:
         return jsonify({"erro": str(e)}), 400
@@ -744,8 +747,8 @@ def get_livro(id):
 
 # Proteger - só o administrador pode visualizar o emprestimo por usuário
 @app.route('/emprestimos_usuario/<id>', methods=['GET'])
-@jwt_required()
-@admin_required
+# @jwt_required()
+# @admin_required
 def emprestimos_usuario(id):
     """
            API para listar emprestimos por usuários.
@@ -861,6 +864,24 @@ def status_livro():
         return jsonify({"erro": str(e)}), 400
     finally:
         db_session.close()
+
+
+@app.route('/calcular_devolucao')
+def calcular_devolucao(data_emprestimo):
+    try:
+        prazo = 15
+        dias = datetime.today() + relativedelta(days=prazo)
+
+        calculo = data_emprestimo + dias
+
+        return jsonify({
+            "devolucao": calculo.strftime("%d/%m/%Y"),
+        })
+
+    except ValueError:
+        return jsonify({
+            "error"
+        })
 
 
 spec.register(app)
