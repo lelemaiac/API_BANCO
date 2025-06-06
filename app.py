@@ -273,6 +273,7 @@ def cadastrar_emprestimo():
                 "erro": "Preencher os campos em branco!!"
             }), 400
 
+
         data_devolucao = dados_emprestimo["data_devolucao_prevista"]
         data_emprestimo = dados_emprestimo["data_emprestimo"]
         livro = dados_emprestimo["livro_id"]
@@ -535,8 +536,8 @@ def editar_emprestimo(id):
 
 # Proteger - só o administrador pode visualizar os usuários
 @app.route('/get_usuario/<int:id>', methods=['GET'])
-@jwt_required()
-@admin_required
+# @jwt_required()
+# @admin_required
 def get_usuario(id):
     """
            API para buscar um usuário.
@@ -776,8 +777,11 @@ def emprestimos_usuario(id):
     db_session = session_local()
 
     try:
+        print("id do usuario", id)
         id_usuario = int(id)
         emprestimos_user = db_session.execute(select(Emprestimo).where(Emprestimo.usuario_id == id_usuario)).scalars().all()
+        print("kkkkk1")
+        print("kkkkk1", emprestimos_user)
 
         if not emprestimos_user:
             return jsonify({
