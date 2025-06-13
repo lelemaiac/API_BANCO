@@ -145,7 +145,7 @@ class Emprestimo(Base):
         dados_emprestimo = {
             'id': self.id,
             'data_emprestimo': self.data_emprestimo,
-            'data_devolucao': self.data_devolucao_prevista,
+            'data_devolucao_prevista': self.data_devolucao_prevista,
             'livro_id': self.livro_id,
             'usuario_id': self.usuario_id,
         }

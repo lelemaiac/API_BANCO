@@ -467,7 +467,7 @@ def editar_usuario(id):
     finally:
         db_session.close()
 
-@app.route('/editar_emprestimo/id>', methods=['PUT'])
+@app.route('/editar_emprestimo/<id>', methods=['PUT'])
 # @jwt_required()
 # @admin_required
 def editar_emprestimo(id):
@@ -515,17 +515,17 @@ def editar_emprestimo(id):
 
         emprestimo_atualizado.livro_id = dados_editar_emprestimo["livro_id"]
         emprestimo_atualizado.usuario_id = dados_editar_emprestimo["usuario_id"].strip()
-        emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["data_devolucao_"]
+        emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["data_devolucao_prevista"]
         emprestimo_atualizado.data_emprestimo = dados_editar_emprestimo["data_emprestimo"]
 
         emprestimo_atualizado.save(db_session)
         # db_session.commit()
 
         return jsonify({
-            "livro_id": emprestimo_atualizado.livro_id,
-            "usuario_id": emprestimo_atualizado.usuario_id,
-            "data_devolucao_prevista": emprestimo_atualizado.data_devolucao_prevista,
-            "data_emprestimo": emprestimo_atualizado.data_emprestimo,
+            'livro_id': emprestimo_atualizado.livro_id,
+            'usuario_id': emprestimo_atualizado.usuario_id,
+            'data_devolucao_prevista': emprestimo_atualizado.data_devolucao_prevista,
+            'data_emprestimo': emprestimo_atualizado.data_emprestimo,
         }), 200
 
     except Exception as e:
