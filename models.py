@@ -115,6 +115,7 @@ class Emprestimo(Base):
     id = Column(Integer, primary_key=True)
     data_emprestimo = Column(String, nullable=False, index=True, autoincrement=True)
     data_devolucao_prevista = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, index=True)
 
     livro_id = Column(Integer, ForeignKey('Livros.id'))
     livros = relationship('Livro')
@@ -146,6 +147,7 @@ class Emprestimo(Base):
             'id': self.id,
             'data_emprestimo': self.data_emprestimo,
             'data_devolucao_prevista': self.data_devolucao_prevista,
+            'status': self.status,
             'livro_id': self.livro_id,
             'usuario_id': self.usuario_id,
         }

@@ -258,32 +258,50 @@ def cadastrar_emprestimo():
            """
     db_session = session_local()
     dados_emprestimo = request.get_json()
-    print(dados_emprestimo)
+    print('www',dados_emprestimo)
     # print(dados_emprestimo["livro_id"])
     try:
         if (not "livro_id" in dados_emprestimo or not "usuario_id" in dados_emprestimo
-                or not "data_devolucao_prevista" in dados_emprestimo or not "data_emprestimo" in dados_emprestimo):
+                or not "data_emprestimo" in dados_emprestimo or not "status" in dados_emprestimo):
             return jsonify({
-                "erro": "É obrigatório ter os campos: Livro, usuário, data_devolucao e data_emprestimo"
+                "erro": "É obrigatório ter os campos: Livro, usuário,status, data_devolucao e data_emprestimo"
             }), 400
 
         if dados_emprestimo["livro_id"] == "" or dados_emprestimo["usuario_id"] == ""\
-                or dados_emprestimo["data_devolucao_prevista"] == "" or dados_emprestimo["data_emprestimo"] == "":
+                or dados_emprestimo["data_emprestimo"] == "" or dados_emprestimo["status"] == "":
             return jsonify({
                 "erro": "Preencher os campos em branco!!"
-            }), 400
+            }), 400,
+
+        if not usuarios:
+            return jsonify({"error": "Usuário não encontrado!"}), 400
+
+        livro_ja_emprestado = db_session.execute(
+            select(Emprestimo).where(Emprestimo.livro_id == dados_emprestimo["livro_id"])
+        ).scalar()
+
+        if livro_ja_emprestado:
+            return jsonify({"error": "Livro já cadastrado!"}), 400
 
 
-        data_devolucao = dados_emprestimo["data_devolucao_prevista"]
-        data_emprestimo = dados_emprestimo["data_emprestimo"]
-        livro = dados_emprestimo["livro_id"]
-        usuario = dados_emprestimo["usuario_id"]
+       # Determinar o status
+        status = "Ativo"
+        data_atual = datetime.now
+
+
+        # Conversão de dados
+        data_emprestimo = datetime.strptime(dados_emprestimo["data_emprestimo"], '%d/%m/%Y')
+        # data_devolucao = datetime.strptime(dados_emprestimo["data_devolucao"], '%d/%m/%Y')
+        data_devolucao_prevista = dados_emprestimo['data_devolucao_prevista']
+        livro = int(dados_emprestimo["livro_id"])
+        usuario = int(dados_emprestimo["usuario_id"])
 
         form_criar = Emprestimo(
-            data_emprestimo=data_emprestimo,
-            data_devolucao_prevista=data_devolucao,
+            data_emprestimo=data_emprestimo.strftime('%d-%m-%Y'),
+            data_devolucao_prevista=data_devolucao_prevista,
             livro_id=livro,
-            usuario_id=usuario
+            usuario_id=usuario,
+            status=status
         )
 
 
@@ -291,10 +309,7 @@ def cadastrar_emprestimo():
         # db_session.close()
 
         return jsonify({
-            "data_devolucao_prevista": dados_emprestimo["data_devolucao_prevista"],
-            "data_emprestimo": dados_emprestimo["data_emprestimo"],
-            "livro_id": dados_emprestimo["livro_id"],
-            "usuario_id": dados_emprestimo["usuario_id"],
+            "success": "Emprestimo cadastrado com sucesso!"
         }), 201
 
     except sqlalchemy.exc.IntegrityError:
@@ -501,13 +516,13 @@ def editar_emprestimo(id):
             }), 400
 
         if (not "livro_id" in dados_editar_emprestimo or not "usuario_id" in dados_editar_emprestimo
-                or not "data_devolucao_prevista" in dados_editar_emprestimo or not "data_emprestimo" in dados_editar_emprestimo):
+                or not "data_devolucao_prevista" in dados_editar_emprestimo or not "data_emprestimo" in dados_editar_emprestimo or not "status" in dados_editar_emprestimo):
             return jsonify({
                 "erro": "É obrigatório ter os campos: Nome, CPF, Endereço, Papel"
             }), 400
 
         if (dados_editar_emprestimo["livro_id"] == "" or dados_editar_emprestimo["usuario_id"] == ""
-                or dados_editar_emprestimo["data_devolucao_prevista"] == "" or dados_editar_emprestimo["data_emprestimo"] == ""):
+                or dados_editar_emprestimo["data_devolucao_prevista"] == "" or dados_editar_emprestimo["data_emprestimo"] == "" or dados_editar_emprestimo["status"] == ""):
             return jsonify({
                 "erro": "Preencher os campos em branco!!"
             }), 400
@@ -517,6 +532,7 @@ def editar_emprestimo(id):
         emprestimo_atualizado.usuario_id = dados_editar_emprestimo["usuario_id"].strip()
         emprestimo_atualizado.data_devolucao_prevista = dados_editar_emprestimo["data_devolucao_prevista"]
         emprestimo_atualizado.data_emprestimo = dados_editar_emprestimo["data_emprestimo"]
+        emprestimo_atualizado.status = dados_editar_emprestimo["status"]
 
         emprestimo_atualizado.save(db_session)
         # db_session.commit()
@@ -526,6 +542,7 @@ def editar_emprestimo(id):
             'usuario_id': emprestimo_atualizado.usuario_id,
             'data_devolucao_prevista': emprestimo_atualizado.data_devolucao_prevista,
             'data_emprestimo': emprestimo_atualizado.data_emprestimo,
+            'status': emprestimo_atualizado.status,
         }), 200
 
     except Exception as e:
@@ -870,16 +887,15 @@ def status_livro():
         db_session.close()
 
 
-@app.route('/calcular_devolucao')
-def calcular_devolucao(data_emprestimo):
+@app.route('/calcular_devolucao/<data_emprestimo>+<prazo>', methods=['GET'])
+def calcular_devolucao(data_emprestimo, prazo):
     try:
-        prazo = 15
-        dias = datetime.today() + relativedelta(days=prazo)
+        conversao_data = datetime.strptime(data_emprestimo,"%d/%m/%Y")
 
-        calculo = data_emprestimo + dias
+        data_calculada = conversao_data + relativedelta(days=int(prazo))
 
         return jsonify({
-            "devolucao": calculo.strftime("%d/%m/%Y"),
+            "devolucao": data_calculada.strftime("%d/%m/%Y"),
         })
 
     except ValueError:
@@ -892,3 +908,96 @@ spec.register(app)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)
+
+
+
+
+
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# @app.route('/novo_emprestimo', methods=['POST'])
+# def criar_emprestimo():
+#     """
+#     Cadastrar um novo empréstimo
+#     """
+#     db_session = session_local()
+#     try:
+#         dados_emprestimo = request.get_json()
+#
+#         # Validação dos campos obrigatórios
+#         campos_obrigatorios = ["data_de_emprestimo", "data_de_devolucao", "livro_emprestado_id", "usuario_emprestado_id"]
+#         for campo in campos_obrigatorios:
+#             if not dados_emprestimo.get(campo):
+#                 return jsonify({'error': f'O campo "{campo}" é obrigatório'}), 400
+#
+#         # Conversão de dados
+#         data_de_emprestimo = datetime.strptime(dados_emprestimo['data_de_emprestimo'], '%d-%m-%Y')
+#         data_de_devolucao = dados_emprestimo['data_de_devolucao']
+#         livro_emprestado_id = int(dados_emprestimo['livro_emprestado_id'])
+#         usuario_emprestado_id = int(dados_emprestimo['usuario_emprestado_id'])
+#
+#         # Verificar se o livro está emprestado no momento
+#         # emprestimo_existente = db_session.execute(
+#         #     select(Emprestimos).where(Emprestimos.livro_emprestado_id == livro_emprestado_id)
+#         # ).scalar()
+#         #
+#         # if emprestimo_existente:
+#         #     data_dev = datetime.strptime(emprestimo_existente.data_de_devolucao, '%Y-%m-%d')
+#         #     if data_dev > datetime.now():
+#         #         return jsonify({"error": f"Livro já emprestado! Disponível em: {data_dev.strftime('%Y-%m-%d')}"}), 400
+#
+#
+#
+#         # Verificar se o usuário existe
+#         usuario = db_session.execute(
+#             select(Usuarios).where(Usuarios.id == usuario_emprestado_id)
+#         ).scalar()
+#
+#         if not usuario:
+#             return jsonify({"error": "Usuário não encontrado!"}), 400
+#
+#         # Verificar se o livro existe
+#         livro = db_session.execute(
+#             select(Livro).where(Livro.id == livro_emprestado_id)
+#         ).scalar()
+#
+#         if not livro:
+#             return jsonify({'error': 'Livro não encontrado'}), 400
+#
+#         # Determinar o status
+#
+#         status = 'Ativo'
+#
+#         # Criar o empréstimo
+#         novo_emprestimo = Emprestimos(
+#             data_de_emprestimo=data_de_emprestimo.strftime('%d-%m-%Y'),
+#             # data_de_devolucao=data_de_devolucao,
+#             livro_emprestado_id=livro_emprestado_id,
+#             usuario_emprestado_id=usuario_emprestado_id,
+#             status=status
+#         )
+#
+#         novo_emprestimo.save(db_session)
+#
+#         resultado = {
+#             "success": "Empréstimo cadastrado com sucesso!"
+#         }
+#
+#         return jsonify(resultado), 201
+#
+#     except Exception as e:
+#         db_session.rollback()
+#         print(e)
+#         return jsonify({"error": str(e)}), 400
+#     finally:
+#         db_session.close()
+
